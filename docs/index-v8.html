@@ -71,7 +71,9 @@
   input[type=text]:focus { border-color: var(--accent); }
   .tier-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
   .tier-name { width: 160px; }
-  .tier-mask { width: 52px; text-align: center; }
+  .tier-mask { width: 110px; text-align: center; }
+  select { font-size: 13px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); outline: none; transition: border-color 0.15s; }
+  select:focus { border-color: var(--accent); }
   .hosts-hint { font-size: 11px; color: var(--text-hint); min-width: 64px; }
   .tgw-tag { font-size: 10px; background: var(--warning-bg); color: var(--warning-text); border-radius: 10px; padding: 2px 7px; white-space: nowrap; }
   .btn { font-size: 13px; padding: 6px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: background 0.1s; }
@@ -173,6 +175,15 @@ function isTgw(name) {
   return document.getElementById('tgwTailMode').checked && name.includes('TGW');
 }
 
+function maskOptions(selected) {
+  let opts = '';
+  for (let m = 16; m <= 28; m++) {
+    const count = Math.pow(2, 32 - m);
+    opts += `<option value="${m}" ${m === selected ? 'selected' : ''}>/${m} (${count.toLocaleString()})</option>`;
+  }
+  return opts;
+}
+
 function renderTiers() {
   const tgwOn = document.getElementById('tgwTailMode').checked;
   document.getElementById('tierHint').style.display = tgwOn ? '' : 'none';
@@ -184,7 +195,7 @@ function renderTiers() {
       <span style="font-size:12px;color:var(--text-hint);min-width:16px">${i+1}</span>
       <input type="text" class="tier-name" value="${t.name}" onchange="tiers[${i}].name=this.value;renderTiers();" placeholder="ティア名" />
       <span style="font-size:12px;color:var(--text-muted)">/</span>
-      <input type="text" class="tier-mask" value="${t.mask}" onchange="updateMask(${i},this.value)" maxlength="2" />
+      <select class="tier-mask" onchange="updateMask(${i},this.value)">${maskOptions(t.mask)}</select>
       <span class="hosts-hint">${hint}</span>
       ${tgwMark}
       <button class="btn btn-del" onclick="delTier(${i})" title="削除"><i class="ti ti-trash"></i></button>
