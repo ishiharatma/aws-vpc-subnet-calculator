@@ -62,7 +62,9 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; }
   .page { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
-  h1 { font-size: 18px; font-weight: 500; margin-bottom: 1.5rem; }
+  .title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 0; }
+  .version-badge { display: inline-flex; align-items: center; flex-shrink: 0; white-space: nowrap; font-size: 10px; font-weight: 600; letter-spacing: 0.02em; color: #fff; background: linear-gradient(135deg, var(--accent), var(--pro-text)); padding: 2px 8px; border-radius: 10px; line-height: 1.4; }
   .section { margin-bottom: 1.5rem; }
   .section-title { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
   .row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -144,7 +146,11 @@
 </head>
 <body>
 <div class="page">
-  <h1>AWS VPC サブネット CIDR 計算ツール</h1>
+  <!-- バージョン表記: 機能追加・変更のたびにマイナーバージョンを+0.1してください (v<メジャー>.<マイナー>) -->
+  <div class="title-row">
+    <h1>AWS VPC サブネット CIDR 計算ツール</h1>
+    <span class="version-badge">v1.2</span>
+  </div>
 
   <div class="section">
     <div class="section-title">VPC設定</div>
