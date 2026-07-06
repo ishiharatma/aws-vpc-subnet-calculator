@@ -137,6 +137,9 @@
   .free-card .sc-name { font-size: 11px; font-style: italic; color: var(--success-text); text-align: center; }
   .free-card .sc-info { font-size: 10px; color: var(--success-text); text-align: center; opacity: 0.8; font-family: var(--mono); }
   .diagram-footer { font-size: 11px; color: var(--text-muted); margin-top: 12px; text-align: center; }
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--success-border); color: #fff; padding: 10px 20px; border-radius: var(--radius); font-size: 13px; font-weight: 500; box-shadow: 0 4px 16px rgba(0,0,0,0.2); opacity: 0; pointer-events: none; transition: opacity 0.4s ease, transform 0.4s ease; z-index: 1000; display: flex; align-items: center; gap: 6px; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast .material-icons { font-size: 16px; }
 </style>
 </head>
 <body>
@@ -181,6 +184,8 @@
   <button class="btn btn-primary" onclick="calculate()" style="margin-bottom:1.5rem">計算 ↗</button>
   <div id="result"></div>
 </div>
+
+<div id="toast" class="toast"><span class="material-icons">check_circle</span><span id="toastMsg"></span></div>
 
 <script>
 let tiers = [
@@ -246,12 +251,21 @@ function parseVPC(cidr) {
 function ipToStr(n) { return [(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255].join('.'); }
 function floorAligned(addr, size) { return Math.floor(addr / size) * size; }
 
+let toastTimer = null;
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = message;
+  clearTimeout(toastTimer);
+  toast.classList.add('show');
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1500);
+}
+
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === name));
 }
 
-function calculate() {
+function calculate(notify = true) {
   const cidr = document.getElementById('vpcCidr').value;
   const vpc = parseVPC(cidr);
   const errEl = document.getElementById('vpcErr');
@@ -415,10 +429,12 @@ function calculate() {
     <div class="tab-panel active" data-panel="table">${tableHTML}</div>
     <div class="tab-panel" data-panel="diagram"><div class="diagram-wrap">${diagramHTML}</div></div>
   `;
+
+  if (notify) showToast('計算しました');
 }
 
 renderTiers();
-calculate();
+calculate(false);
 </script>
 </body>
 </html>
