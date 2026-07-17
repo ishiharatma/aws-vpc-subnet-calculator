@@ -155,7 +155,7 @@
   <!-- バージョン表記: 機能追加・変更のたびにマイナーバージョンを+0.1してください (v<メジャー>.<マイナー>) -->
   <div class="title-row">
     <h1>AWS VPC サブネット CIDR 計算ツール</h1>
-    <span class="version-badge">v1.2</span>
+    <span class="version-badge">v1.3</span>
   </div>
 
   <div class="section">
@@ -382,6 +382,7 @@ function calculate(notify = true) {
 
   const summary = `<div class="info-row">
     <div class="info-card"><div class="lbl">VPC CIDR</div><div class="val">${cidr}</div></div>
+    <div class="info-card"><div class="lbl">IPアドレス範囲</div><div class="val" style="font-size:13px">${ipToStr(vpc.base)} – ${ipToStr(vpc.end)}</div></div>
     <div class="info-card"><div class="lbl">総アドレス数</div><div class="val">${vpc.total.toLocaleString()}</div></div>
     <div class="info-card"><div class="lbl">割り当て済</div><div class="val">${usedCount.toLocaleString()}</div></div>
     <div class="info-card"><div class="lbl">空き合計</div><div class="val" style="color:var(--success-text)">${totalFree.toLocaleString()} (${freePct}%)</div></div>
