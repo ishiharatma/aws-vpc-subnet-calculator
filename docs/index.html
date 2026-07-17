@@ -71,7 +71,12 @@
   label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
   input[type=text] { font-size: 13px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); outline: none; transition: border-color 0.15s; }
   input[type=text]:focus { border-color: var(--accent); }
-  .tier-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .tier-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; transition: opacity 0.15s, border 0.1s; border: 2px solid transparent; border-radius: var(--radius); }
+  .tier-drag-handle { cursor: grab; color: var(--text-hint); display: flex; align-items: center; padding: 0 2px; flex-shrink: 0; }
+  .tier-drag-handle:active { cursor: grabbing; }
+  .tier-row.dragging { opacity: 0.4; }
+  .tier-row.drag-over-top { border-top-color: var(--accent); }
+  .tier-row.drag-over-bottom { border-bottom-color: var(--accent); }
   .tier-name { width: 160px; }
   .tier-mask { width: 110px; text-align: center; }
   select { font-size: 13px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); outline: none; transition: border-color 0.15s; }
@@ -155,7 +160,7 @@
   <!-- バージョン表記: 機能追加・変更のたびにマイナーバージョンを+0.1してください (v<メジャー>.<マイナー>) -->
   <div class="title-row">
     <h1>AWS VPC サブネット CIDR 計算ツール</h1>
-    <span class="version-badge">v1.3</span>
+    <span class="version-badge">v1.4</span>
   </div>
 
   <div class="section">
@@ -245,7 +250,12 @@ function renderTiers() {
     const h = Math.pow(2, 32 - t.mask) - 5;
     const hint = h > 0 ? `(有効${h}台)` : '';
     const tgwMark = tgwOn && t.name.includes('TGW') ? `<span class="tgw-tag">末尾割り当て</span>` : '';
-    return `<div class="tier-row">
+    return `<div class="tier-row" draggable="true" data-idx="${i}"
+        ondragstart="tierDragStart(${i},event)"
+        ondragover="tierDragOver(${i},event)"
+        ondrop="tierDrop(${i},event)"
+        ondragend="tierDragEnd(event)">
+      <span class="tier-drag-handle" title="ドラッグして並び替え"><span class="material-icons" style="font-size:18px">drag_indicator</span></span>
       <span style="font-size:12px;color:var(--text-hint);min-width:16px">${i+1}</span>
       <input type="text" class="tier-name" value="${t.name}" onchange="tiers[${i}].name=this.value;renderTiers();" placeholder="ティア名" />
       <span style="font-size:12px;color:var(--text-muted)">/</span>
@@ -260,6 +270,35 @@ function renderTiers() {
 function updateMask(i, val) { tiers[i].mask = parseInt(val) || 24; renderTiers(); }
 function addTier() { tiers.push({ name: '新ティア', mask: 28 }); renderTiers(); }
 function delTier(i) { tiers.splice(i, 1); renderTiers(); }
+
+let _dragSrc = null;
+function tierDragStart(i, e) {
+  _dragSrc = i;
+  e.dataTransfer.effectAllowed = 'move';
+  const row = e.currentTarget;
+  setTimeout(() => { if (row) row.classList.add('dragging'); }, 0);
+}
+function tierDragOver(i, e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if (_dragSrc === null || _dragSrc === i) return;
+  document.querySelectorAll('.tier-row').forEach((r, idx) => {
+    r.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (idx === i) r.classList.add(i < _dragSrc ? 'drag-over-top' : 'drag-over-bottom');
+  });
+}
+function tierDrop(i, e) {
+  e.preventDefault();
+  if (_dragSrc === null || _dragSrc === i) { tierDragEnd(e); return; }
+  const moved = tiers.splice(_dragSrc, 1)[0];
+  tiers.splice(i, 0, moved);
+  _dragSrc = null;
+  renderTiers();
+}
+function tierDragEnd(e) {
+  _dragSrc = null;
+  document.querySelectorAll('.tier-row').forEach(r => r.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom'));
+}
 
 function parseVPC(cidr) {
   const m = cidr.trim().match(/^(\d+\.\d+\.\d+\.\d+)\/(\d+)$/);
