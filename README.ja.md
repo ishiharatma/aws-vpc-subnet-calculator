@@ -6,12 +6,13 @@
 
 複数ティア・AZをまたいだAWS VPCサブネットCIDRの計算と空きアドレス空間の可視化を行うブラウザツール。
 
-*他の言語で読む:* [![🇯🇵 日本語](https://img.shields.io/badge/%F0%9F%87%AF%F0%9F%87%B5-日本語-white)](./README.ja.md) [![🇺🇸 English](https://img.shields.io/badge/%F0%9F%87%BA%F0%9F%87%B8-English-white)](./README.md)
+*Read this in other languages:* [![🇯🇵 日本語](https://img.shields.io/badge/%F0%9F%87%AF%F0%9F%87%B5-日本語-white)](./README.ja.md) [![🇺🇸 English](https://img.shields.io/badge/%F0%9F%87%BA%F0%9F%87%B8-English-white)](./README.md)
 
 ## 機能
 
 - **VPC CIDR 可変入力** — 任意のCIDRブロックを入力可能（例：`10.0.0.0/22`）
 - **マルチティア設計** — ティアの追加・削除・サブネットマスク指定が自由に行える
+- **ドラッグ&ドロップで並び替え** — ティアの順序をドラッグ操作で自由に入れ替え可能
 - **2AZ対応** — `ap-northeast-1a` / `ap-northeast-1c` へ自動で振り分けて割り当て
 - **TGW末尾割り当て** — ティア名に「TGW」を含む場合、VPCアドレス空間の末尾から逆算して割り当て（ON/OFF切り替え可能）
 - **空きアドレス空間の検出** — アライメントギャップ・前詰めとTGWの間・VPC末尾の余剰など、すべての空き範囲を検出・表示

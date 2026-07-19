@@ -11,7 +11,8 @@ A browser-based tool to calculate and visualize AWS VPC subnet CIDRs across mult
 ## Features
 
 - **Variable VPC CIDR** — Enter any valid CIDR block (e.g. `10.0.0.0/22`)
-- **Multi-tier subnet design** — Add, remove, and reorder tiers with custom subnet masks
+- **Multi-tier subnet design** — Add, remove, and configure tiers with custom subnet masks
+- **Drag-and-drop reordering** — Reorder tiers by dragging them into place
 - **Dual AZ support** — Automatically allocates subnets across `ap-northeast-1a` and `ap-northeast-1c`
 - **TGW tail allocation** — Optionally reserves TGW subnets from the end of the VPC address space
 - **Free address space detection** — Detects and displays all gaps including alignment gaps, space between forward-allocated and TGW subnets, and trailing space
