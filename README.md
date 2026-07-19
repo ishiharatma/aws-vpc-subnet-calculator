@@ -1,13 +1,13 @@
 # aws-vpc-subnet-calculator
 
+*他の言語で読む/Read this in other languages:* [![🇯🇵 日本語](https://img.shields.io/badge/%F0%9F%87%AF%F0%9F%87%B5-日本語-white)](./README.ja.md) [![🇺🇸 English](https://img.shields.io/badge/%F0%9F%87%BA%F0%9F%87%B8-English-white)](./README.md)
+
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live-brightgreen)](https://ishiharatma.github.io/aws-vpc-subnet-calculator/)
 
 ![screenshot](/images/screenshot-en.png)
 ![screenshot-result](/images/screenshot-result-en.png)
 
 A browser-based tool to calculate and visualize Amazon VPC subnet CIDRs across multiple tiers and AZs, with free address space detection.
-
-*他の言語で読む:* [![🇯🇵 日本語](https://img.shields.io/badge/%F0%9F%87%AF%F0%9F%87%B5-日本語-white)](./README.ja.md) [![🇺🇸 English](https://img.shields.io/badge/%F0%9F%87%BA%F0%9F%87%B8-English-white)](./README.md)
 
 ## Features
 
