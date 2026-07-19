@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AWS VPC サブネット CIDR 計算ツール</title>
+<title>AWS VPC Subnet CIDR Calculator</title>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y3B4CBL400"></script>
 <script>
@@ -73,6 +73,10 @@
   .title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; }
   h1 { font-size: 18px; font-weight: 500; margin-bottom: 0; }
   .version-badge { display: inline-flex; align-items: center; flex-shrink: 0; white-space: nowrap; font-size: 10px; font-weight: 600; letter-spacing: 0.02em; color: #fff; background: linear-gradient(135deg, var(--accent), var(--pro-text)); padding: 2px 8px; border-radius: 10px; line-height: 1.4; }
+  .lang-switch { display: inline-flex; align-items: center; gap: 0; border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden; margin-left: auto; flex-shrink: 0; }
+  .lang-btn { font-size: 12px; font-weight: 500; padding: 4px 10px; border: none; background: var(--surface); color: var(--text-muted); cursor: pointer; transition: background 0.15s, color 0.15s; letter-spacing: 0.02em; }
+  .lang-btn.active { background: var(--accent); color: #fff; }
+  .lang-btn:first-child { border-right: 1px solid var(--border-strong); }
   .section { margin-bottom: 1.5rem; }
   .section-title { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
   .row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -167,46 +171,50 @@
 <div class="page">
   <!-- バージョン表記: 機能追加・変更のたびにマイナーバージョンを+0.1してください (v<メジャー>.<マイナー>) -->
   <div class="title-row">
-    <h1>AWS VPC サブネット CIDR 計算ツール</h1>
-    <span class="version-badge">v1.4</span>
+    <h1 id="pageTitle"></h1>
+    <span class="version-badge">v1.5</span>
+    <div class="lang-switch">
+      <button class="lang-btn" id="btnJa" onclick="setLang('ja')">日本語</button>
+      <button class="lang-btn" id="btnEn" onclick="setLang('en')">English</button>
+    </div>
   </div>
 
   <div class="section">
-    <div class="section-title">VPC設定</div>
+    <div class="section-title" id="secVpc"></div>
     <div class="row">
       <label>VPC CIDR</label>
-      <input type="text" id="vpcCidr" value="10.0.0.0/22" style="width:160px" placeholder="例: 10.0.0.0/22" />
+      <input type="text" id="vpcCidr" value="10.0.0.0/22" style="width:160px" />
       <span id="vpcErr" class="error"></span>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">オプション</div>
+    <div class="section-title" id="secOptions"></div>
     <div class="toggle-row">
       <label class="toggle">
         <input type="checkbox" id="tgwTailMode" checked onchange="renderTiers()">
         <div class="toggle-track"></div><div class="toggle-thumb"></div>
       </label>
-      <span style="font-size:13px;color:var(--text-muted)">TGW末尾割り当て（ティア名に「TGW」を含む場合、VPC末尾から逆算）</span>
+      <span id="labelTgw" style="font-size:13px;color:var(--text-muted)"></span>
     </div>
     <div class="toggle-row">
       <label class="toggle">
         <input type="checkbox" id="showFree" checked>
         <div class="toggle-track"></div><div class="toggle-thumb"></div>
       </label>
-      <span style="font-size:13px;color:var(--text-muted)">空きアドレス空間を表示</span>
+      <span id="labelShowFree" style="font-size:13px;color:var(--text-muted)"></span>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">ティア構成</div>
-    <p class="hint-text" id="tierHint">ティア名に「TGW」を含む場合、VPC末尾アドレスから逆算して割り当てます。</p>
+    <div class="section-title" id="secTiers"></div>
+    <p class="hint-text" id="tierHint"></p>
     <div id="tierList"></div>
-    <button class="btn" onclick="addTier()">＋ ティアを追加</button>
+    <button class="btn" id="btnAddTier" onclick="addTier()"></button>
   </div>
 
   <div class="divider"></div>
-  <button class="btn btn-primary" onclick="calculate()" style="margin-bottom:1.5rem">計算 ↗</button>
+  <button class="btn btn-primary" id="btnCalc" onclick="calculate()" style="margin-bottom:1.5rem"></button>
   <div id="result"></div>
 </div>
 
@@ -227,12 +235,142 @@
 <div id="toast" class="toast"><span class="material-icons">check_circle</span><span id="toastMsg"></span></div>
 
 <script>
-let tiers = [
-  { name: 'Private-App',      mask: 24 },
-  { name: 'Public',           mask: 26 },
-  { name: 'Private-DB',       mask: 26 },
-  { name: 'VPCエンドポイント', mask: 26 },
-  { name: 'TGW',              mask: 28 },
+const i18n = {
+  ja: {
+    pageTitle: 'AWS VPC サブネット CIDR 計算ツール',
+    secVpc: 'VPC設定',
+    secOptions: 'オプション',
+    secTiers: 'ティア構成',
+    labelTgw: 'TGW末尾割り当て（ティア名に「TGW」を含む場合、VPC末尾から逆算）',
+    labelShowFree: '空きアドレス空間を表示',
+    tierHint: 'ティア名に「TGW」を含む場合、VPC末尾アドレスから逆算して割り当てます。',
+    tierPlaceholder: 'ティア名',
+    dragTitle: 'ドラッグして並び替え',
+    delTitle: '削除',
+    btnAddTier: '＋ ティアを追加',
+    btnCalc: '計算 ↗',
+    newTierName: '新ティア',
+    tgwTag: '末尾割り当て',
+    hostsHint: function(h) { return '(有効' + h + '台)'; },
+    errInvalidCidr: '無効なCIDRです（例: 10.0.0.0/22）',
+    warnNoTier: 'ティアを1つ以上追加してください。',
+    warnBadMask: function(name, mask, prefix) { return '「' + name + '」のマスク /' + mask + ' が不正です（/' + prefix + 'より大きく /16〜/28 の範囲で指定）。'; },
+    warnOverflow: '⚠️ VPC CIDRの範囲を超えました。VPCのプレフィックスを大きくするか、ティアのマスクを調整してください。',
+    warnCollision: '⚠️ 前詰めサブネットとTGWサブネットのアドレス範囲が重複しています。マスクを見直してください。',
+    lblVpcCidr: 'VPC CIDR',
+    lblIpRange: 'IPアドレス範囲',
+    lblTotal: '総アドレス数',
+    lblUsed: '割り当て済',
+    lblFree: '空き合計',
+    thTier: 'ティア',
+    thAz: 'AZ',
+    thCidr: 'CIDR',
+    thFirst: '先頭アドレス',
+    thLast: '末尾アドレス',
+    thTotalCount: '総数',
+    thUsable: '有効数',
+    thAssign: '割り当て',
+    freeLabel: '空き',
+    badgeFree: '未割当',
+    badgeTail: '末尾',
+    badgeFwd: '前詰',
+    tableNote: '※ 有効数 = 総数 - 5（AWSの予約アドレス）　※ ティア名に「TGW」を含む場合、末尾から逆算して割り当てます。',
+    freeCardName: '空き',
+    addrUnit: 'アドレス',
+    addrUsable: function(total, usable) { return total.toLocaleString() + ' addr（有効 ' + usable.toLocaleString() + '）'; },
+    diagramFooterPrefix: '未割り当て:',
+    diagramFooterSuffix: '（将来拡張用）',
+    tabTable: '表',
+    tabDiagram: '図',
+    toastCalc: '計算しました',
+    vpcCidrPlaceholder: '例: 10.0.0.0/22',
+  },
+  en: {
+    pageTitle: 'AWS VPC Subnet CIDR Calculator',
+    secVpc: 'VPC Settings',
+    secOptions: 'Options',
+    secTiers: 'Tier Configuration',
+    labelTgw: 'TGW Tail Assignment (tiers containing "TGW" are allocated from the end of the VPC)',
+    labelShowFree: 'Show free address space',
+    tierHint: 'Tiers containing "TGW" in their name are allocated from the end of the VPC address range.',
+    tierPlaceholder: 'Tier name',
+    dragTitle: 'Drag to reorder',
+    delTitle: 'Delete',
+    btnAddTier: '+ Add Tier',
+    btnCalc: 'Calculate ↗',
+    newTierName: 'New Tier',
+    tgwTag: 'Tail',
+    hostsHint: function(h) { return '(' + h + ' usable)'; },
+    errInvalidCidr: 'Invalid CIDR (e.g. 10.0.0.0/22)',
+    warnNoTier: 'Please add at least one tier.',
+    warnBadMask: function(name, mask, prefix) { return '"' + name + '" mask /' + mask + ' is invalid (must be greater than /' + prefix + ' and within /16–/28).'; },
+    warnOverflow: '⚠️ Subnets exceed the VPC CIDR range. Increase the VPC prefix or adjust tier masks.',
+    warnCollision: '⚠️ Forward subnets and TGW subnets overlap. Please review the masks.',
+    lblVpcCidr: 'VPC CIDR',
+    lblIpRange: 'IP Address Range',
+    lblTotal: 'Total Addresses',
+    lblUsed: 'Allocated',
+    lblFree: 'Free Total',
+    thTier: 'Tier',
+    thAz: 'AZ',
+    thCidr: 'CIDR',
+    thFirst: 'First Address',
+    thLast: 'Last Address',
+    thTotalCount: 'Total',
+    thUsable: 'Usable',
+    thAssign: 'Assign',
+    freeLabel: 'Free',
+    badgeFree: 'Unassigned',
+    badgeTail: 'Tail',
+    badgeFwd: 'Forward',
+    tableNote: '* Usable = Total - 5 (AWS reserved addresses)  * Tiers with "TGW" are allocated from the end of the VPC.',
+    freeCardName: 'Free',
+    addrUnit: 'addresses',
+    addrUsable: function(total, usable) { return total.toLocaleString() + ' addr (usable: ' + usable.toLocaleString() + ')'; },
+    diagramFooterPrefix: 'Unassigned:',
+    diagramFooterSuffix: '(reserved for future use)',
+    tabTable: 'Table',
+    tabDiagram: 'Diagram',
+    toastCalc: 'Calculated',
+    vpcCidrPlaceholder: 'e.g. 10.0.0.0/22',
+  }
+};
+
+var lang = (navigator.language || navigator.userLanguage || 'ja').startsWith('ja') ? 'ja' : 'en';
+
+function t(key, a, b) {
+  var val = i18n[lang][key];
+  return typeof val === 'function' ? val(a, b) : val;
+}
+
+function applyLang() {
+  document.documentElement.lang = lang === 'ja' ? 'ja' : 'en';
+  document.getElementById('pageTitle').textContent = t('pageTitle');
+  document.getElementById('secVpc').textContent = t('secVpc');
+  document.getElementById('secOptions').textContent = t('secOptions');
+  document.getElementById('secTiers').textContent = t('secTiers');
+  document.getElementById('labelTgw').textContent = t('labelTgw');
+  document.getElementById('labelShowFree').textContent = t('labelShowFree');
+  document.getElementById('btnAddTier').textContent = t('btnAddTier');
+  document.getElementById('btnCalc').textContent = t('btnCalc');
+  document.getElementById('vpcCidr').placeholder = t('vpcCidrPlaceholder');
+  document.getElementById('btnJa').classList.toggle('active', lang === 'ja');
+  document.getElementById('btnEn').classList.toggle('active', lang === 'en');
+}
+
+function setLang(l) {
+  lang = l;
+  applyLang();
+  renderTiers();
+  calculate(false);
+}
+
+var tiers = [
+  { name: 'Private-App',  mask: 24 },
+  { name: 'Public',       mask: 26 },
+  { name: 'Private-DB',   mask: 26 },
+  { name: 'VPCEndpoint',  mask: 26 },
+  { name: 'TGW',          mask: 28 },
 ];
 
 const TIER_COLORS = [
@@ -243,54 +381,56 @@ function tierColor(idx) { return TIER_COLORS[idx % TIER_COLORS.length]; }
 function isTgw(name) { return document.getElementById('tgwTailMode').checked && name.includes('TGW'); }
 
 function maskOptions(selected) {
-  let opts = '';
-  for (let m = 16; m <= 28; m++) {
-    const count = Math.pow(2, 32 - m);
-    opts += `<option value="${m}" ${m === selected ? 'selected' : ''}>/${m} (${count.toLocaleString()})</option>`;
+  var opts = '';
+  for (var m = 16; m <= 28; m++) {
+    var count = Math.pow(2, 32 - m);
+    opts += '<option value="' + m + '"' + (m === selected ? ' selected' : '') + '>/' + m + ' (' + count.toLocaleString() + ')</option>';
   }
   return opts;
 }
 
 function renderTiers() {
-  const tgwOn = document.getElementById('tgwTailMode').checked;
-  document.getElementById('tierHint').style.display = tgwOn ? '' : 'none';
-  document.getElementById('tierList').innerHTML = tiers.map((t, i) => {
-    const h = Math.pow(2, 32 - t.mask) - 5;
-    const hint = h > 0 ? `(有効${h}台)` : '';
-    const tgwMark = tgwOn && t.name.includes('TGW') ? `<span class="tgw-tag">末尾割り当て</span>` : '';
-    return `<div class="tier-row" draggable="true" data-idx="${i}"
-        ondragstart="tierDragStart(${i},event)"
-        ondragover="tierDragOver(${i},event)"
-        ondrop="tierDrop(${i},event)"
-        ondragend="tierDragEnd(event)">
-      <span class="tier-drag-handle" title="ドラッグして並び替え"><span class="material-icons" style="font-size:18px">drag_indicator</span></span>
-      <span style="font-size:12px;color:var(--text-hint);min-width:16px">${i+1}</span>
-      <input type="text" class="tier-name" value="${t.name}" onchange="tiers[${i}].name=this.value;renderTiers();" placeholder="ティア名" />
-      <span style="font-size:12px;color:var(--text-muted)">/</span>
-      <select class="tier-mask" onchange="updateMask(${i},this.value)">${maskOptions(t.mask)}</select>
-      <span class="hosts-hint">${hint}</span>
-      ${tgwMark}
-      <button class="btn btn-del" onclick="delTier(${i})" title="削除"><span class="material-icons">delete</span></button>
-    </div>`;
+  var tgwOn = document.getElementById('tgwTailMode').checked;
+  var tierHintEl = document.getElementById('tierHint');
+  tierHintEl.style.display = tgwOn ? '' : 'none';
+  tierHintEl.textContent = t('tierHint');
+  document.getElementById('tierList').innerHTML = tiers.map(function(tier, i) {
+    var h = Math.pow(2, 32 - tier.mask) - 5;
+    var hint = h > 0 ? t('hostsHint', h) : '';
+    var tgwMark = tgwOn && tier.name.includes('TGW') ? '<span class="tgw-tag">' + t('tgwTag') + '</span>' : '';
+    return '<div class="tier-row" draggable="true" data-idx="' + i + '"' +
+      ' ondragstart="tierDragStart(' + i + ',event)"' +
+      ' ondragover="tierDragOver(' + i + ',event)"' +
+      ' ondrop="tierDrop(' + i + ',event)"' +
+      ' ondragend="tierDragEnd(event)">' +
+      '<span class="tier-drag-handle" title="' + t('dragTitle') + '"><span class="material-icons" style="font-size:18px">drag_indicator</span></span>' +
+      '<span style="font-size:12px;color:var(--text-hint);min-width:16px">' + (i+1) + '</span>' +
+      '<input type="text" class="tier-name" value="' + tier.name + '" onchange="tiers[' + i + '].name=this.value;renderTiers();" placeholder="' + t('tierPlaceholder') + '" />' +
+      '<span style="font-size:12px;color:var(--text-muted)">/</span>' +
+      '<select class="tier-mask" onchange="updateMask(' + i + ',this.value)">' + maskOptions(tier.mask) + '</select>' +
+      '<span class="hosts-hint">' + hint + '</span>' +
+      tgwMark +
+      '<button class="btn btn-del" onclick="delTier(' + i + ')" title="' + t('delTitle') + '"><span class="material-icons">delete</span></button>' +
+      '</div>';
   }).join('');
 }
 
 function updateMask(i, val) { tiers[i].mask = parseInt(val) || 24; renderTiers(); }
-function addTier() { tiers.push({ name: '新ティア', mask: 28 }); renderTiers(); }
+function addTier() { tiers.push({ name: t('newTierName'), mask: 28 }); renderTiers(); }
 function delTier(i) { tiers.splice(i, 1); renderTiers(); }
 
-let _dragSrc = null;
+var _dragSrc = null;
 function tierDragStart(i, e) {
   _dragSrc = i;
   e.dataTransfer.effectAllowed = 'move';
-  const row = e.currentTarget;
-  setTimeout(() => { if (row) row.classList.add('dragging'); }, 0);
+  var row = e.currentTarget;
+  setTimeout(function() { if (row) row.classList.add('dragging'); }, 0);
 }
 function tierDragOver(i, e) {
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
   if (_dragSrc === null || _dragSrc === i) return;
-  document.querySelectorAll('.tier-row').forEach((r, idx) => {
+  document.querySelectorAll('.tier-row').forEach(function(r, idx) {
     r.classList.remove('drag-over-top', 'drag-over-bottom');
     if (idx === i) r.classList.add(i < _dragSrc ? 'drag-over-top' : 'drag-over-bottom');
   });
@@ -298,215 +438,238 @@ function tierDragOver(i, e) {
 function tierDrop(i, e) {
   e.preventDefault();
   if (_dragSrc === null || _dragSrc === i) { tierDragEnd(e); return; }
-  const moved = tiers.splice(_dragSrc, 1)[0];
+  var moved = tiers.splice(_dragSrc, 1)[0];
   tiers.splice(i, 0, moved);
   _dragSrc = null;
   renderTiers();
 }
 function tierDragEnd(e) {
   _dragSrc = null;
-  document.querySelectorAll('.tier-row').forEach(r => r.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom'));
+  document.querySelectorAll('.tier-row').forEach(function(r) { r.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom'); });
 }
 
 function parseVPC(cidr) {
-  const m = cidr.trim().match(/^(\d+\.\d+\.\d+\.\d+)\/(\d+)$/);
+  var m = cidr.trim().match(/^(\d+\.\d+\.\d+\.\d+)\/(\d+)$/);
   if (!m) return null;
-  const parts = m[1].split('.').map(Number);
-  if (parts.some(p => p < 0 || p > 255)) return null;
-  const prefix = parseInt(m[2]);
+  var parts = m[1].split('.').map(Number);
+  if (parts.some(function(p) { return p < 0 || p > 255; })) return null;
+  var prefix = parseInt(m[2]);
   if (prefix < 8 || prefix > 28) return null;
-  const base = ((parts[0]<<24)|(parts[1]<<16)|(parts[2]<<8)|parts[3]) >>> 0;
-  const total = Math.pow(2, 32 - prefix);
-  const network = (base & (~((1 << (32 - prefix)) - 1) >>> 0)) >>> 0;
-  return { base: network, prefix, total, end: network + total - 1 };
+  var base = ((parts[0]<<24)|(parts[1]<<16)|(parts[2]<<8)|parts[3]) >>> 0;
+  var total = Math.pow(2, 32 - prefix);
+  var network = (base & (~((1 << (32 - prefix)) - 1) >>> 0)) >>> 0;
+  return { base: network, prefix: prefix, total: total, end: network + total - 1 };
 }
 
 function ipToStr(n) { return [(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255].join('.'); }
 function floorAligned(addr, size) { return Math.floor(addr / size) * size; }
 
-let toastTimer = null;
+var toastTimer = null;
 function showToast(message) {
-  const toast = document.getElementById('toast');
+  var toast = document.getElementById('toast');
   document.getElementById('toastMsg').textContent = message;
   clearTimeout(toastTimer);
   toast.classList.add('show');
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 1500);
+  toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 1500);
 }
 
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === name));
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.tab === name); });
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.toggle('active', p.dataset.panel === name); });
 }
 
-function calculate(notify = true) {
-  const cidr = document.getElementById('vpcCidr').value;
-  const vpc = parseVPC(cidr);
-  const errEl = document.getElementById('vpcErr');
-  if (!vpc) { errEl.textContent = '無効なCIDRです（例: 10.0.0.0/22）'; return; }
+function calculate(notify) {
+  if (notify === undefined) notify = true;
+  var cidr = document.getElementById('vpcCidr').value;
+  var vpc = parseVPC(cidr);
+  var errEl = document.getElementById('vpcErr');
+  if (!vpc) { errEl.textContent = t('errInvalidCidr'); return; }
   errEl.textContent = '';
 
-  if (tiers.length === 0) { document.getElementById('result').innerHTML = '<div class="warn">ティアを1つ以上追加してください。</div>'; return; }
-  for (const t of tiers) {
-    if (t.mask <= vpc.prefix || t.mask < 16 || t.mask > 28) {
-      document.getElementById('result').innerHTML = `<div class="warn">「${t.name}」のマスク /${t.mask} が不正です（/${vpc.prefix}より大きく /16〜/28 の範囲で指定）。</div>`; return;
+  if (tiers.length === 0) { document.getElementById('result').innerHTML = '<div class="warn">' + t('warnNoTier') + '</div>'; return; }
+  for (var ti = 0; ti < tiers.length; ti++) {
+    var tier = tiers[ti];
+    if (tier.mask <= vpc.prefix || tier.mask < 16 || tier.mask > 28) {
+      document.getElementById('result').innerHTML = '<div class="warn">' + t('warnBadMask', tier.name, tier.mask, vpc.prefix) + '</div>'; return;
     }
   }
 
-  const normalTiers = tiers.filter(t => !isTgw(t.name));
-  const tgwTiers    = tiers.filter(t =>  isTgw(t.name));
-  const AZS = ['1a', '1c'];
-  const allocRows = [];
-  let overflow = false;
+  var normalTiers = tiers.filter(function(tier) { return !isTgw(tier.name); });
+  var tgwTiers    = tiers.filter(function(tier) { return  isTgw(tier.name); });
+  var AZS = ['1a', '1c'];
+  var allocRows = [];
+  var overflow = false;
 
-  let fwdCursor = vpc.base;
-  for (const tier of normalTiers) {
-    const sz = Math.pow(2, 32 - tier.mask);
-    for (let az = 0; az < 2; az++) {
-      const aligned = Math.ceil(fwdCursor / sz) * sz;
-      const end = aligned + sz - 1;
+  var fwdCursor = vpc.base;
+  for (var ni = 0; ni < normalTiers.length; ni++) {
+    var ntier = normalTiers[ni];
+    var sz = Math.pow(2, 32 - ntier.mask);
+    for (var az = 0; az < 2; az++) {
+      var aligned = Math.ceil(fwdCursor / sz) * sz;
+      var end = aligned + sz - 1;
       if (end > vpc.end) { overflow = true; break; }
-      allocRows.push({ kind:'subnet', tier: tier.name, az: AZS[az], azIdx: az,
-        cidr: `${ipToStr(aligned)}/${tier.mask}`, first: ipToStr(aligned), last: ipToStr(end),
+      allocRows.push({ kind:'subnet', tier: ntier.name, az: AZS[az], azIdx: az,
+        cidr: ipToStr(aligned) + '/' + ntier.mask, first: ipToStr(aligned), last: ipToStr(end),
         total: sz, usable: sz-5, tail: false, startNum: aligned, endNum: end });
       fwdCursor = end + 1;
     }
     if (overflow) break;
   }
 
-  let bwdCursor = vpc.end;
-  const tgwBuilt = [];
-  for (const tier of [...tgwTiers].reverse()) {
-    const sz = Math.pow(2, 32 - tier.mask);
-    for (let az = 1; az >= 0; az--) {
-      const aligned = floorAligned(bwdCursor - sz + 1, sz);
-      const end = aligned + sz - 1;
-      if (aligned < vpc.base) { overflow = true; break; }
-      tgwBuilt.unshift({ kind:'subnet', tier: tier.name, az: AZS[az], azIdx: az,
-        cidr: `${ipToStr(aligned)}/${tier.mask}`, first: ipToStr(aligned), last: ipToStr(end),
-        total: sz, usable: sz-5, tail: true, startNum: aligned, endNum: end });
-      bwdCursor = aligned - 1;
+  var bwdCursor = vpc.end;
+  var tgwBuilt = [];
+  var tgwRev = tgwTiers.slice().reverse();
+  for (var gi = 0; gi < tgwRev.length; gi++) {
+    var gtier = tgwRev[gi];
+    var gsz = Math.pow(2, 32 - gtier.mask);
+    for (var gaz = 1; gaz >= 0; gaz--) {
+      var galigned = floorAligned(bwdCursor - gsz + 1, gsz);
+      var gend = galigned + gsz - 1;
+      if (galigned < vpc.base) { overflow = true; break; }
+      tgwBuilt.unshift({ kind:'subnet', tier: gtier.name, az: AZS[gaz], azIdx: gaz,
+        cidr: ipToStr(galigned) + '/' + gtier.mask, first: ipToStr(galigned), last: ipToStr(gend),
+        total: gsz, usable: gsz-5, tail: true, startNum: galigned, endNum: gend });
+      bwdCursor = galigned - 1;
     }
     if (overflow) break;
   }
 
-  const fwdEnd   = allocRows.length > 0 ? allocRows[allocRows.length-1].endNum : vpc.base - 1;
-  const tgwStart = tgwBuilt.length  > 0 ? tgwBuilt[0].startNum               : vpc.end  + 1;
-  const collision = allocRows.length > 0 && tgwBuilt.length > 0 && fwdEnd >= tgwStart;
-  const allSubnets = [...allocRows, ...tgwBuilt].sort((a,b) => a.startNum - b.startNum);
+  var fwdEnd   = allocRows.length > 0 ? allocRows[allocRows.length-1].endNum : vpc.base - 1;
+  var tgwStart = tgwBuilt.length  > 0 ? tgwBuilt[0].startNum               : vpc.end  + 1;
+  var collision = allocRows.length > 0 && tgwBuilt.length > 0 && fwdEnd >= tgwStart;
+  var allSubnets = allocRows.concat(tgwBuilt).sort(function(a,b) { return a.startNum - b.startNum; });
 
-  const gaps = [];
-  let cursor = vpc.base;
-  for (const s of allSubnets) {
+  var gaps = [];
+  var cursor = vpc.base;
+  for (var si = 0; si < allSubnets.length; si++) {
+    var s = allSubnets[si];
     if (s.startNum > cursor) gaps.push({ kind:'free', startNum: cursor, endNum: s.startNum-1 });
     cursor = s.endNum + 1;
   }
   if (cursor <= vpc.end) gaps.push({ kind:'free', startNum: cursor, endNum: vpc.end });
 
-  const totalFree = gaps.reduce((a,g) => a+(g.endNum-g.startNum+1), 0);
-  const usedCount = vpc.total - totalFree;
-  const freePct   = Math.round(totalFree/vpc.total*100);
-  const showFree  = document.getElementById('showFree').checked;
+  var totalFree = gaps.reduce(function(a,g) { return a+(g.endNum-g.startNum+1); }, 0);
+  var usedCount = vpc.total - totalFree;
+  var freePct   = Math.round(totalFree/vpc.total*100);
+  var showFree  = document.getElementById('showFree').checked;
 
-  const tableRows = [];
+  var tableRows = [];
   cursor = vpc.base;
-  for (const s of allSubnets) {
-    if (showFree && s.startNum > cursor) tableRows.push({ kind:'free', startNum: cursor, endNum: s.startNum-1 });
-    tableRows.push(s);
-    cursor = s.endNum + 1;
+  for (var sri = 0; sri < allSubnets.length; sri++) {
+    var sr = allSubnets[sri];
+    if (showFree && sr.startNum > cursor) tableRows.push({ kind:'free', startNum: cursor, endNum: sr.startNum-1 });
+    tableRows.push(sr);
+    cursor = sr.endNum + 1;
   }
   if (showFree && cursor <= vpc.end) tableRows.push({ kind:'free', startNum: cursor, endNum: vpc.end });
 
   function buildDiagramColumn(azIdx) {
-    const azSubnets = allSubnets.filter(s => s.azIdx === azIdx);
-    const events = [...azSubnets, ...(showFree ? gaps : [])];
-    events.sort((a,b) => a.startNum - b.startNum);
+    var azSubnets = allSubnets.filter(function(s) { return s.azIdx === azIdx; });
+    var events = azSubnets.concat(showFree ? gaps : []);
+    events.sort(function(a,b) { return a.startNum - b.startNum; });
     return events;
   }
 
-  let warns = '';
-  if (overflow) warns += `<div class="warn">⚠️ VPC CIDRの範囲を超えました。VPCのプレフィックスを大きくするか、ティアのマスクを調整してください。</div>`;
-  if (collision) warns += `<div class="warn">⚠️ 前詰めサブネットとTGWサブネットのアドレス範囲が重複しています。マスクを見直してください。</div>`;
+  var warns = '';
+  if (overflow) warns += '<div class="warn">' + t('warnOverflow') + '</div>';
+  if (collision) warns += '<div class="warn">' + t('warnCollision') + '</div>';
 
-  const summary = `<div class="info-row">
-    <div class="info-card"><div class="lbl">VPC CIDR</div><div class="val">${cidr}</div></div>
-    <div class="info-card"><div class="lbl">IPアドレス範囲</div><div class="val" style="font-size:13px">${ipToStr(vpc.base)} – ${ipToStr(vpc.end)}</div></div>
-    <div class="info-card"><div class="lbl">総アドレス数</div><div class="val">${vpc.total.toLocaleString()}</div></div>
-    <div class="info-card"><div class="lbl">割り当て済</div><div class="val">${usedCount.toLocaleString()}</div></div>
-    <div class="info-card"><div class="lbl">空き合計</div><div class="val" style="color:var(--success-text)">${totalFree.toLocaleString()} (${freePct}%)</div></div>
-  </div>`;
+  var summary = '<div class="info-row">' +
+    '<div class="info-card"><div class="lbl">' + t('lblVpcCidr') + '</div><div class="val">' + cidr + '</div></div>' +
+    '<div class="info-card"><div class="lbl">' + t('lblIpRange') + '</div><div class="val" style="font-size:13px">' + ipToStr(vpc.base) + ' – ' + ipToStr(vpc.end) + '</div></div>' +
+    '<div class="info-card"><div class="lbl">' + t('lblTotal') + '</div><div class="val">' + vpc.total.toLocaleString() + '</div></div>' +
+    '<div class="info-card"><div class="lbl">' + t('lblUsed') + '</div><div class="val">' + usedCount.toLocaleString() + '</div></div>' +
+    '<div class="info-card"><div class="lbl">' + t('lblFree') + '</div><div class="val" style="color:var(--success-text)">' + totalFree.toLocaleString() + ' (' + freePct + '%)</div></div>' +
+    '</div>';
 
-  const freeBanner = (showFree && gaps.length > 0) ? `<div class="free-banner">${gaps.map(g => {
-    const cnt = g.endNum-g.startNum+1;
-    return `<div class="fb-row"><span class="mono">${ipToStr(g.startNum)} – ${ipToStr(g.endNum)}</span><strong>${cnt.toLocaleString()} アドレス</strong></div>`;
-  }).join('')}</div>` : '';
+  var freeBanner = '';
+  if (showFree && gaps.length > 0) {
+    freeBanner = '<div class="free-banner">' + gaps.map(function(g) {
+      var cnt = g.endNum-g.startNum+1;
+      return '<div class="fb-row"><span class="mono">' + ipToStr(g.startNum) + ' – ' + ipToStr(g.endNum) + '</span><strong>' + cnt.toLocaleString() + ' ' + t('addrUnit') + '</strong></div>';
+    }).join('') + '</div>';
+  }
 
-  let tableHTML = `<div class="table-wrap"><table>
-    <colgroup><col style="width:18%"><col style="width:6%"><col style="width:17%"><col style="width:14%"><col style="width:14%"><col style="width:9%"><col style="width:9%"><col style="width:9%"></colgroup>
-    <thead><tr><th>ティア</th><th>AZ</th><th>CIDR</th><th>先頭アドレス</th><th>末尾アドレス</th><th style="text-align:right">総数</th><th style="text-align:right">有効数</th><th>割り当て</th></tr></thead><tbody>`;
-  for (const r of tableRows) {
+  var tableHTML = '<div class="table-wrap"><table>' +
+    '<colgroup><col style="width:18%"><col style="width:6%"><col style="width:17%"><col style="width:14%"><col style="width:14%"><col style="width:9%"><col style="width:9%"><col style="width:9%"></colgroup>' +
+    '<thead><tr>' +
+    '<th>' + t('thTier') + '</th><th>' + t('thAz') + '</th><th>' + t('thCidr') + '</th>' +
+    '<th>' + t('thFirst') + '</th><th>' + t('thLast') + '</th>' +
+    '<th style="text-align:right">' + t('thTotalCount') + '</th>' +
+    '<th style="text-align:right">' + t('thUsable') + '</th>' +
+    '<th>' + t('thAssign') + '</th>' +
+    '</tr></thead><tbody>';
+  for (var ri = 0; ri < tableRows.length; ri++) {
+    var r = tableRows[ri];
     if (r.kind === 'free') {
-      const cnt = r.endNum-r.startNum+1;
-      tableHTML += `<tr style="background:var(--success-bg);color:var(--success-text);font-style:italic;font-size:11px">
-        <td colspan="2">空き</td><td class="mono">—</td>
-        <td class="mono">${ipToStr(r.startNum)}</td><td class="mono">${ipToStr(r.endNum)}</td>
-        <td style="text-align:right" class="mono">${cnt.toLocaleString()}</td>
-        <td style="text-align:right" class="mono">—</td>
-        <td><span class="badge badge-free">未割当</span></td>
-      </tr>`;
+      var cnt = r.endNum-r.startNum+1;
+      tableHTML += '<tr style="background:var(--success-bg);color:var(--success-text);font-style:italic;font-size:11px">' +
+        '<td colspan="2">' + t('freeLabel') + '</td><td class="mono">—</td>' +
+        '<td class="mono">' + ipToStr(r.startNum) + '</td><td class="mono">' + ipToStr(r.endNum) + '</td>' +
+        '<td style="text-align:right" class="mono">' + cnt.toLocaleString() + '</td>' +
+        '<td style="text-align:right" class="mono">—</td>' +
+        '<td><span class="badge badge-free">' + t('badgeFree') + '</span></td>' +
+        '</tr>';
     } else {
-      tableHTML += `<tr>
-        <td style="font-weight:500">${r.tier}</td>
-        <td><span class="badge ${r.azIdx===0?'badge-az1':'badge-az2'}">${r.az}</span></td>
-        <td class="mono">${r.cidr}</td>
-        <td class="mono" style="font-size:11px;color:var(--text-muted)">${r.first}</td>
-        <td class="mono" style="font-size:11px;color:var(--text-muted)">${r.last}</td>
-        <td style="text-align:right" class="mono">${r.total.toLocaleString()}</td>
-        <td style="text-align:right" class="mono">${r.usable.toLocaleString()}</td>
-        <td><span class="badge ${r.tail?'badge-tail':'badge-fwd'}">${r.tail?'末尾':'前詰'}</span></td>
-      </tr>`;
+      tableHTML += '<tr>' +
+        '<td style="font-weight:500">' + r.tier + '</td>' +
+        '<td><span class="badge ' + (r.azIdx===0?'badge-az1':'badge-az2') + '">' + r.az + '</span></td>' +
+        '<td class="mono">' + r.cidr + '</td>' +
+        '<td class="mono" style="font-size:11px;color:var(--text-muted)">' + r.first + '</td>' +
+        '<td class="mono" style="font-size:11px;color:var(--text-muted)">' + r.last + '</td>' +
+        '<td style="text-align:right" class="mono">' + r.total.toLocaleString() + '</td>' +
+        '<td style="text-align:right" class="mono">' + r.usable.toLocaleString() + '</td>' +
+        '<td><span class="badge ' + (r.tail?'badge-tail':'badge-fwd') + '">' + (r.tail?t('badgeTail'):t('badgeFwd')) + '</span></td>' +
+        '</tr>';
     }
   }
-  tableHTML += `</tbody></table></div><p style="font-size:11px;color:var(--text-hint);margin-top:8px">※ 有効数 = 総数 - 5（AWSの予約アドレス）　※ ティア名に「TGW」を含む場合、末尾から逆算して割り当てます。</p>`;
+  tableHTML += '</tbody></table></div><p style="font-size:11px;color:var(--text-hint);margin-top:8px">' + t('tableNote') + '</p>';
 
-  const tierNames = [...new Set(allSubnets.map(s => s.tier))];
-  const colorMap = {};
-  tierNames.forEach((name, i) => { colorMap[name] = tierColor(i); });
+  var tierNames = [];
+  allSubnets.forEach(function(s) { if (tierNames.indexOf(s.tier) < 0) tierNames.push(s.tier); });
+  var colorMap = {};
+  tierNames.forEach(function(name, i) { colorMap[name] = tierColor(i); });
 
   function renderCard(c) {
     if (c.kind === 'free') {
-      const cnt = c.endNum-c.startNum+1;
-      return `<div class="free-card"><div class="sc-name">空き</div><div class="sc-info">${ipToStr(c.startNum)} – ${ipToStr(c.endNum)}<br>${cnt.toLocaleString()} アドレス</div></div>`;
+      var cnt = c.endNum-c.startNum+1;
+      return '<div class="free-card"><div class="sc-name">' + t('freeCardName') + '</div><div class="sc-info">' + ipToStr(c.startNum) + ' – ' + ipToStr(c.endNum) + '<br>' + cnt.toLocaleString() + ' ' + t('addrUnit') + '</div></div>';
     }
-    const col = colorMap[c.tier] || '#555';
-    return `<div class="subnet-card" style="background:${col}"><div class="sc-name">${c.tier}</div><div class="sc-cidr">${c.cidr}</div><div class="sc-info">${c.total.toLocaleString()} addr（有効 ${c.usable.toLocaleString()}）<br>${c.first} – ${c.last}</div></div>`;
+    var col = colorMap[c.tier] || '#555';
+    return '<div class="subnet-card" style="background:' + col + '"><div class="sc-name">' + c.tier + '</div><div class="sc-cidr">' + c.cidr + '</div><div class="sc-info">' + t('addrUsable', c.total, c.usable) + '<br>' + c.first + ' – ' + c.last + '</div></div>';
   }
 
-  const col0 = buildDiagramColumn(0);
-  const col1 = buildDiagramColumn(1);
+  var col0 = buildDiagramColumn(0);
+  var col1 = buildDiagramColumn(1);
 
-  const diagramHTML = `<div class="diagram">
-    <div class="diagram-header">VPC: ${cidr}</div>
-    <div class="diagram-total">${vpc.total.toLocaleString()} addresses</div>
-    <div class="az-grid">
-      <div class="az-col"><div class="az-label">AZ-a (ap-northeast-1a)</div>${col0.map(renderCard).join('')}</div>
-      <div class="az-col"><div class="az-label">AZ-c (ap-northeast-1c)</div>${col1.map(renderCard).join('')}</div>
-    </div>
-    ${gaps.length>0&&showFree?`<div class="diagram-footer">未割り当て: ${gaps.map(g=>`${ipToStr(g.startNum)} – ${ipToStr(g.endNum)}`).join(' / ')}（将来拡張用）</div>`:''}
-  </div>`;
+  var diagramFooter = '';
+  if (gaps.length > 0 && showFree) {
+    diagramFooter = '<div class="diagram-footer">' + t('diagramFooterPrefix') + ' ' +
+      gaps.map(function(g) { return ipToStr(g.startNum) + ' – ' + ipToStr(g.endNum); }).join(' / ') +
+      ' ' + t('diagramFooterSuffix') + '</div>';
+  }
 
-  document.getElementById('result').innerHTML = `
-    ${warns}${summary}${freeBanner}
-    <div class="tab-bar">
-      <button class="tab-btn active" data-tab="table" onclick="switchTab('table')">表</button>
-      <button class="tab-btn" data-tab="diagram" onclick="switchTab('diagram')">図</button>
-    </div>
-    <div class="tab-panel active" data-panel="table">${tableHTML}</div>
-    <div class="tab-panel" data-panel="diagram"><div class="diagram-wrap">${diagramHTML}</div></div>
-  `;
+  var diagramHTML = '<div class="diagram">' +
+    '<div class="diagram-header">VPC: ' + cidr + '</div>' +
+    '<div class="diagram-total">' + vpc.total.toLocaleString() + ' addresses</div>' +
+    '<div class="az-grid">' +
+    '<div class="az-col"><div class="az-label">AZ-a (ap-northeast-1a)</div>' + col0.map(renderCard).join('') + '</div>' +
+    '<div class="az-col"><div class="az-label">AZ-c (ap-northeast-1c)</div>' + col1.map(renderCard).join('') + '</div>' +
+    '</div>' + diagramFooter + '</div>';
 
-  if (notify) showToast('計算しました');
+  document.getElementById('result').innerHTML =
+    warns + summary + freeBanner +
+    '<div class="tab-bar">' +
+    '<button class="tab-btn active" data-tab="table" onclick="switchTab(\'table\')">' + t('tabTable') + '</button>' +
+    '<button class="tab-btn" data-tab="diagram" onclick="switchTab(\'diagram\')">' + t('tabDiagram') + '</button>' +
+    '</div>' +
+    '<div class="tab-panel active" data-panel="table">' + tableHTML + '</div>' +
+    '<div class="tab-panel" data-panel="diagram"><div class="diagram-wrap">' + diagramHTML + '</div></div>';
+
+  if (notify) showToast(t('toastCalc'));
 }
 
+applyLang();
 renderTiers();
 calculate(false);
 </script>
