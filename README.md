@@ -1,6 +1,6 @@
 # aws-vpc-subnet-calculator
 
-![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live-brightgreen)](https://ishiharatma.github.io/aws-vpc-subnet-calculator/)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live-brightgreen)](https://ishiharatma.github.io/aws-vpc-subnet-calculator/)
 
 ![screenshot](/images/screenshot-en.png)
 
