@@ -3,8 +3,9 @@
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live-brightgreen)](https://ishiharatma.github.io/aws-vpc-subnet-calculator/)
 
 ![screenshot](/images/screenshot-ja.png)
+![screenshot-result](/images/screenshot-result-ja.png)
 
-複数ティア・AZをまたいだAWS VPCサブネットCIDRの計算と空きアドレス空間の可視化を行うブラウザツール。
+複数ティア・AZをまたいだAmazon VPCサブネットCIDRの計算と空きアドレス空間の可視化を行うブラウザツール。
 
 *Read this in other languages:* [![🇯🇵 日本語](https://img.shields.io/badge/%F0%9F%87%AF%F0%9F%87%B5-日本語-white)](./README.ja.md) [![🇺🇸 English](https://img.shields.io/badge/%F0%9F%87%BA%F0%9F%87%B8-English-white)](./README.md)
 
@@ -17,6 +18,7 @@
 - **TGW末尾割り当て** — ティア名に「TGW」を含む場合、VPCアドレス空間の末尾から逆算して割り当て（ON/OFF切り替え可能）
 - **空きアドレス空間の検出** — アライメントギャップ・前詰めとTGWの間・VPC末尾の余剰など、すべての空き範囲を検出・表示
 - **AWSの予約アドレス考慮** — サブネットごとに5アドレスを控除した有効ホスト数を表示
+- **日英言語切り替え** — ボタンでUI表示言語を切り替え可能。初回表示時はブラウザの言語設定を自動判定
 - **ダークモード対応** — システムのカラースキームに自動追従
 
 ## デフォルト設定

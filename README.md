@@ -3,8 +3,9 @@
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live-brightgreen)](https://ishiharatma.github.io/aws-vpc-subnet-calculator/)
 
 ![screenshot](/images/screenshot-en.png)
+![screenshot-result](/images/screenshot-result-en.png)
 
-A browser-based tool to calculate and visualize AWS VPC subnet CIDRs across multiple tiers and AZs, with free address space detection.
+A browser-based tool to calculate and visualize Amazon VPC subnet CIDRs across multiple tiers and AZs, with free address space detection.
 
 *他の言語で読む:* [![🇯🇵 日本語](https://img.shields.io/badge/%F0%9F%87%AF%F0%9F%87%B5-日本語-white)](./README.ja.md) [![🇺🇸 English](https://img.shields.io/badge/%F0%9F%87%BA%F0%9F%87%B8-English-white)](./README.md)
 
@@ -17,6 +18,7 @@ A browser-based tool to calculate and visualize AWS VPC subnet CIDRs across mult
 - **TGW tail allocation** — Optionally reserves TGW subnets from the end of the VPC address space
 - **Free address space detection** — Detects and displays all gaps including alignment gaps, space between forward-allocated and TGW subnets, and trailing space
 - **AWS reserved address aware** — Displays usable host count after subtracting the 5 AWS-reserved addresses per subnet
+- **Japanese/English language switching** — Toggle the UI language with a button; auto-detects the browser's language on load
 - **Dark mode support** — Automatically adapts to system color scheme
 
 ## Default Configuration
