@@ -172,7 +172,7 @@
   <!-- バージョン表記: 機能追加・変更のたびにマイナーバージョンを+0.1してください (v<メジャー>.<マイナー>) -->
   <div class="title-row">
     <h1 id="pageTitle"></h1>
-    <span class="version-badge">v1.5</span>
+    <span class="version-badge">v1.6</span>
     <div class="lang-switch">
       <button class="lang-btn" id="btnJa" onclick="setLang('ja')">日本語</button>
       <button class="lang-btn" id="btnEn" onclick="setLang('en')">English</button>
@@ -203,6 +203,13 @@
         <div class="toggle-track"></div><div class="toggle-thumb"></div>
       </label>
       <span id="labelShowFree" style="font-size:13px;color:var(--text-muted)"></span>
+    </div>
+    <div class="toggle-row">
+      <span id="labelCalcMethod" style="font-size:13px;color:var(--text-muted);margin-right:8px"></span>
+      <div class="lang-switch" style="margin-left:0">
+        <button class="lang-btn active" id="btnTierFirst" onclick="setCalcMethod('tier')"></button>
+        <button class="lang-btn" id="btnAzFirst" onclick="setCalcMethod('az')"></button>
+      </div>
     </div>
   </div>
 
@@ -284,6 +291,9 @@ const i18n = {
     tabDiagram: '図',
     toastCalc: '計算しました',
     vpcCidrPlaceholder: '例: 10.0.0.0/22',
+    labelCalcMethod: '計算方法',
+    calcMethodTierFirst: 'ティア優先',
+    calcMethodAzFirst: 'AZ優先',
   },
   en: {
     pageTitle: 'Amazon VPC Subnet CIDR Calculator',
@@ -333,10 +343,14 @@ const i18n = {
     tabDiagram: 'Diagram',
     toastCalc: 'Calculated',
     vpcCidrPlaceholder: 'e.g. 10.0.0.0/22',
+    labelCalcMethod: 'Calc Method',
+    calcMethodTierFirst: 'Tier-first',
+    calcMethodAzFirst: 'AZ-first',
   }
 };
 
 var lang = (navigator.language || navigator.userLanguage || 'ja').startsWith('ja') ? 'ja' : 'en';
+var calcMethod = 'tier';
 
 function t(key, a, b) {
   var val = i18n[lang][key];
@@ -356,12 +370,24 @@ function applyLang() {
   document.getElementById('vpcCidr').placeholder = t('vpcCidrPlaceholder');
   document.getElementById('btnJa').classList.toggle('active', lang === 'ja');
   document.getElementById('btnEn').classList.toggle('active', lang === 'en');
+  document.getElementById('labelCalcMethod').textContent = t('labelCalcMethod');
+  document.getElementById('btnTierFirst').textContent = t('calcMethodTierFirst');
+  document.getElementById('btnAzFirst').textContent = t('calcMethodAzFirst');
+  document.getElementById('btnTierFirst').classList.toggle('active', calcMethod === 'tier');
+  document.getElementById('btnAzFirst').classList.toggle('active', calcMethod === 'az');
 }
 
 function setLang(l) {
   lang = l;
   applyLang();
   renderTiers();
+  calculate(false);
+}
+
+function setCalcMethod(m) {
+  calcMethod = m;
+  document.getElementById('btnTierFirst').classList.toggle('active', m === 'tier');
+  document.getElementById('btnAzFirst').classList.toggle('active', m === 'az');
   calculate(false);
 }
 
@@ -501,19 +527,36 @@ function calculate(notify) {
   var overflow = false;
 
   var fwdCursor = vpc.base;
-  for (var ni = 0; ni < normalTiers.length; ni++) {
-    var ntier = normalTiers[ni];
-    var sz = Math.pow(2, 32 - ntier.mask);
+  if (calcMethod === 'az') {
     for (var az = 0; az < 2; az++) {
-      var aligned = Math.ceil(fwdCursor / sz) * sz;
-      var end = aligned + sz - 1;
-      if (end > vpc.end) { overflow = true; break; }
-      allocRows.push({ kind:'subnet', tier: ntier.name, az: AZS[az], azIdx: az,
-        cidr: ipToStr(aligned) + '/' + ntier.mask, first: ipToStr(aligned), last: ipToStr(end),
-        total: sz, usable: sz-5, tail: false, startNum: aligned, endNum: end });
-      fwdCursor = end + 1;
+      for (var ni = 0; ni < normalTiers.length; ni++) {
+        var ntier = normalTiers[ni];
+        var sz = Math.pow(2, 32 - ntier.mask);
+        var aligned = Math.ceil(fwdCursor / sz) * sz;
+        var end = aligned + sz - 1;
+        if (end > vpc.end) { overflow = true; break; }
+        allocRows.push({ kind:'subnet', tier: ntier.name, az: AZS[az], azIdx: az,
+          cidr: ipToStr(aligned) + '/' + ntier.mask, first: ipToStr(aligned), last: ipToStr(end),
+          total: sz, usable: sz-5, tail: false, startNum: aligned, endNum: end });
+        fwdCursor = end + 1;
+      }
+      if (overflow) break;
     }
-    if (overflow) break;
+  } else {
+    for (var ni = 0; ni < normalTiers.length; ni++) {
+      var ntier = normalTiers[ni];
+      var sz = Math.pow(2, 32 - ntier.mask);
+      for (var az = 0; az < 2; az++) {
+        var aligned = Math.ceil(fwdCursor / sz) * sz;
+        var end = aligned + sz - 1;
+        if (end > vpc.end) { overflow = true; break; }
+        allocRows.push({ kind:'subnet', tier: ntier.name, az: AZS[az], azIdx: az,
+          cidr: ipToStr(aligned) + '/' + ntier.mask, first: ipToStr(aligned), last: ipToStr(end),
+          total: sz, usable: sz-5, tail: false, startNum: aligned, endNum: end });
+        fwdCursor = end + 1;
+      }
+      if (overflow) break;
+    }
   }
 
   var bwdCursor = vpc.end;
